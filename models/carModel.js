@@ -1,8 +1,8 @@
-const { Mongoose } = require("mongoose");
+const mongoose = require("mongoose");
 
 monsose = require("mongoose");
 
-const carSchema = Mongoose.Schema(
+const carSchema = mongoose.Schema(
   {
     make: {
       type: String,
@@ -41,4 +41,6 @@ const carSchema = Mongoose.Schema(
   { timestamps: true }
 );
 
-const carModel = mongoose.model("cars", carModel);
+const carModel = mongoose.model("cars", carSchema);
+
+module.exports = carModel;
