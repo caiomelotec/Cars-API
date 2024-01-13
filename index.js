@@ -26,19 +26,40 @@ app.post("/add-car", (req, res) => {
     });
 });
 
-// search car by model
-app.get("/car/:model", (req, res) => {
-  const carName = req.params.model;
+// search car by model, make or year
+app.get("/car/:value", (req, res) => {
+  const input = req.params.value;
+
+  const isNumber = !isNaN(Number(input)); 
+
+  let query;
+  if (isNumber) {
+    query = { year: input };
+  } else {
+    query = { model: { $regex: input, $options: "i" } };
+  }
 
   carModel
-    .find({ model: { $regex: carName, $options: "i" } })
+    .find(query)
     .then((car) => {
+
       if (car.length === 0) {
-        console.log("Car not found");
-        return res.status(404).send({ message: "Car not found" });
+        // No car found with the provided model, try searching by make
+        query = { make: {$regex: input, $options: "i"} };
+
+        carModel.find(query).then((car2) => {
+          if (car2.length === 0) {
+            console.log("Car not found");
+            return res.status(404).send({ message: "Car not found" });
+          }
+          return res.send({ message: "Car was found", data: car2 });
+        });
+
+      } else {
+         // Car found with the provided model or year
+        res.send({ message: "Car was found", data: car });
       }
 
-      res.send({ message: "Car was found", data: car });
     })
     .catch((err) => {
       console.log("Error by searching car", err);
