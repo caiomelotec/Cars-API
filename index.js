@@ -67,6 +67,67 @@ app.get("/car/:value", (req, res) => {
     });
 });
 
+// search two cars to compare
+app.get("/cars/:car1/:car2", async (req, res) => {
+  const input1 = req.params.car1;
+  const input2 = req.params.car2;
+
+
+  let query1 = !isNaN(Number(input1)) ? {year: input1} : {make: {$regex: input1, $options: "i"}};
+  let query2 = !isNaN(Number(input2)) ? {year: input2} : {make: {$regex: input2, $options: "i"}};
+  
+  try {
+    let car1 = await carModel.find(query1);
+    const car2 = await carModel.find(query2);
+    // If both sets of cars are not found, attempt to fetch them by model
+    if(car1.length === 0 && car2.length === 0) {
+
+      query1 = {model: {$regex: input1, $options:"i"}};
+      query2 = {model: {$regex: input2, $options:"i"}};
+
+      const car3 = await carModel.find(query1);
+      const car4 = await carModel.find(query2);
+     // If cars fetched by model are not found, return a response
+      if(car3.length === 0 && car4.length === 0) {
+      return res.send({message: "All cars were not found."});
+      }
+       // Return all cars fetched by model
+      res.send({message: "All cars were found.", car1: car3, car2: car4});
+    }else if(car1.length === 0) {
+       // If the first set of cars is not found, try to fetch by model
+      query1 = {model: {$regex: input1, $options:"i"}};
+      const car3 = await carModel.find(query1);
+
+      if(car3.length === 0) {
+     // If the first car is still not found, return a response
+      return res.send({message: "First car not found", data: car2});
+      };
+
+     return res.send({message: "All cars are found", data: {car1: car3, car2: car2}})
+            
+    } else if(car2.length === 0) {
+       // If the second set of cars is not found, try to fetch by model
+      query2 = {model: {$regex: input2, $options:"i"}};
+      const car4 = await carModel.find(query2);
+
+       // If the second car is still not found, return a response
+      if(car4.length === 0) {
+        return res.send({message: "Second car not found", data: car1});
+      }
+
+       // Return the first set of cars by year or make and the second set by model
+     return  res.send({message: "All cars were found", car1:car1, car2:car4});
+    }
+
+    // Both sets of cars are found, return a response
+    const response = {car1: car1, car2: car2};
+    return res.send({message: "All cars are found", data: response})
+  }catch(err){
+    console.log("Error by searching cars", err);
+    res.status(500).send({ message: "Error by searching cars" });
+  }
+})
+
 app.get("/", (req, res) => {
   res.send("Hello World");
 });
