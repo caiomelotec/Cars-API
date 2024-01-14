@@ -1,11 +1,12 @@
 const express = require("express");
+const bcrypt = require("bcryptjs");
 const app = express();
 const port = 8080;
 const mongoose = require("mongoose");
 
 // models
 const carModel = require("./models/carModel");
-
+const userModel = require("./models/userModel");
 mongoose.connect(process.env.CONNECTION_STRING).then(() => {
   console.log("DB connected");
 });
@@ -30,7 +31,7 @@ app.post("/add-car", (req, res) => {
 app.get("/car/:value", (req, res) => {
   const input = req.params.value;
 
-  const isNumber = !isNaN(Number(input)); 
+  const isNumber = !isNaN(Number(input));
 
   let query;
   if (isNumber) {
@@ -42,10 +43,9 @@ app.get("/car/:value", (req, res) => {
   carModel
     .find(query)
     .then((car) => {
-
       if (car.length === 0) {
         // No car found with the provided model, try searching by make
-        query = { make: {$regex: input, $options: "i"} };
+        query = { make: { $regex: input, $options: "i" } };
 
         carModel.find(query).then((car2) => {
           if (car2.length === 0) {
@@ -54,12 +54,10 @@ app.get("/car/:value", (req, res) => {
           }
           return res.send({ message: "Car was found", data: car2 });
         });
-
       } else {
-         // Car found with the provided model or year
+        // Car found with the provided model or year
         res.send({ message: "Car was found", data: car });
       }
-
     })
     .catch((err) => {
       console.log("Error by searching car", err);
@@ -72,61 +70,111 @@ app.get("/cars/:car1/:car2", async (req, res) => {
   const input1 = req.params.car1;
   const input2 = req.params.car2;
 
+  let query1 = !isNaN(Number(input1))
+    ? { year: input1 }
+    : { make: { $regex: input1, $options: "i" } };
+  let query2 = !isNaN(Number(input2))
+    ? { year: input2 }
+    : { make: { $regex: input2, $options: "i" } };
 
-  let query1 = !isNaN(Number(input1)) ? {year: input1} : {make: {$regex: input1, $options: "i"}};
-  let query2 = !isNaN(Number(input2)) ? {year: input2} : {make: {$regex: input2, $options: "i"}};
-  
   try {
     let car1 = await carModel.find(query1);
     const car2 = await carModel.find(query2);
     // If both sets of cars are not found, attempt to fetch them by model
-    if(car1.length === 0 && car2.length === 0) {
-
-      query1 = {model: {$regex: input1, $options:"i"}};
-      query2 = {model: {$regex: input2, $options:"i"}};
+    if (car1.length === 0 && car2.length === 0) {
+      query1 = { model: { $regex: input1, $options: "i" } };
+      query2 = { model: { $regex: input2, $options: "i" } };
 
       const car3 = await carModel.find(query1);
       const car4 = await carModel.find(query2);
-     // If cars fetched by model are not found, return a response
-      if(car3.length === 0 && car4.length === 0) {
-      return res.send({message: "All cars were not found."});
+      // If cars fetched by model are not found, return a response
+      if (car3.length === 0 && car4.length === 0) {
+        return res.send({ message: "All cars were not found." });
       }
-       // Return all cars fetched by model
-      res.send({message: "All cars were found.", car1: car3, car2: car4});
-    }else if(car1.length === 0) {
-       // If the first set of cars is not found, try to fetch by model
-      query1 = {model: {$regex: input1, $options:"i"}};
+      // Return all cars fetched by model
+      res.send({ message: "All cars were found.", car1: car3, car2: car4 });
+    } else if (car1.length === 0) {
+      // If the first set of cars is not found, try to fetch by model
+      query1 = { model: { $regex: input1, $options: "i" } };
       const car3 = await carModel.find(query1);
 
-      if(car3.length === 0) {
-     // If the first car is still not found, return a response
-      return res.send({message: "First car not found", data: car2});
-      };
-
-     return res.send({message: "All cars are found", data: {car1: car3, car2: car2}})
-            
-    } else if(car2.length === 0) {
-       // If the second set of cars is not found, try to fetch by model
-      query2 = {model: {$regex: input2, $options:"i"}};
-      const car4 = await carModel.find(query2);
-
-       // If the second car is still not found, return a response
-      if(car4.length === 0) {
-        return res.send({message: "Second car not found", data: car1});
+      if (car3.length === 0) {
+        // If the first car is still not found, return a response
+        return res.send({ message: "First car not found", data: car2 });
       }
 
-       // Return the first set of cars by year or make and the second set by model
-     return  res.send({message: "All cars were found", car1:car1, car2:car4});
+      return res.send({
+        message: "All cars are found",
+        data: { car1: car3, car2: car2 },
+      });
+    } else if (car2.length === 0) {
+      // If the second set of cars is not found, try to fetch by model
+      query2 = { model: { $regex: input2, $options: "i" } };
+      const car4 = await carModel.find(query2);
+
+      // If the second car is still not found, return a response
+      if (car4.length === 0) {
+        return res.send({ message: "Second car not found", data: car1 });
+      }
+
+      // Return the first set of cars by year or make and the second set by model
+      return res.send({
+        message: "All cars were found",
+        car1: car1,
+        car2: car4,
+      });
     }
 
     // Both sets of cars are found, return a response
-    const response = {car1: car1, car2: car2};
-    return res.send({message: "All cars are found", data: response})
-  }catch(err){
+    const response = { car1: car1, car2: car2 };
+    return res.send({ message: "All cars are found", data: response });
+  } catch (err) {
     console.log("Error by searching cars", err);
     res.status(500).send({ message: "Error by searching cars" });
   }
-})
+});
+
+// create a new user
+app.post("/registrate", async (req, res) => {
+  const { username, password, email } = req.body;
+
+  try {
+    if (password.length <= 5) {
+      return res
+        .status(400)
+        .send({ message: "Password too short, min lenght is 6" });
+    } else if (password.length > 12) {
+      return res
+        .status(400)
+        .send({ message: "Password too long, max lenght is 12" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+
+    const hashPassword = await bcrypt.hash(password, salt);
+
+    const user = await userModel.create({
+      username,
+      email,
+      password: hashPassword,
+    });
+
+    res.send({ message: "User registered successfully" });
+  } catch (err) {
+    if (err.keyPattern.username === 1) {
+      return res.status(400).json({
+        message: "Username is already taken. Choose a different username.",
+      });
+    }
+    if (err.keyPattern.email === 1) {
+      return res
+        .status(400)
+        .json({ message: "Email is already taken. Choose a different email." });
+    }
+    console.log(err);
+    res.status(500).send({ message: "Error by creating user" });
+  }
+});
 
 app.get("/", (req, res) => {
   res.send("Hello World");
