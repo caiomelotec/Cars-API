@@ -1,7 +1,5 @@
 const mongoose = require("mongoose");
 
-monsose = require("mongoose");
-
 const carSchema = mongoose.Schema(
   {
     make: {
@@ -35,6 +33,11 @@ const carSchema = mongoose.Schema(
     },
     price: {
       type: Number,
+      required: true,
+    },
+    userId: {
+      type: mongoose.Schema.ObjectId,
+      ref: "users",
       required: true,
     },
   },
