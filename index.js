@@ -262,6 +262,17 @@ app.post("/login", async (req, res) => {
   }
 });
 
+app.post("/logout", (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.log(err);
+      res.send({ message: "Error by logging out" });
+    }
+
+    res.send({ message: "User logged out" });
+  });
+});
+
 app.get("/", (req, res) => {
   res.send("Hello World");
 });
