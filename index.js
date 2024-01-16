@@ -1,8 +1,10 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
-const app = express();
 const port = 8080;
 const mongoose = require("mongoose");
+const jwt = require("jsonwebtoken");
+const session = require("express-session");
+const MongoDbStore = require("connect-mongodb-session")(session);
 
 // models
 const carModel = require("./models/carModel");
@@ -10,9 +12,21 @@ const userModel = require("./models/userModel");
 mongoose.connect(process.env.CONNECTION_STRING).then(() => {
   console.log("DB connected");
 });
+
+const app = express();
+// save session in db
+const store = new MongoDbStore({
+  uri: process.env.CONNECTION_STRING,
+  collections: "sessions",
+});
 app.use(express.json());
+app.use(
+  session({ secret: "mysecret", resave: false, saveUninitialized: false, store: store })
+);
+// utility
+const verifyToken = require("./util/verifyToken");
 // Add Car
-app.post("/add-car", (req, res) => {
+app.post("/add-car", verifyToken, (req, res) => {
   const car = req.body;
 
   carModel
@@ -173,6 +187,39 @@ app.post("/registrate", async (req, res) => {
     }
     console.log(err);
     res.status(500).send({ message: "Error by creating user" });
+  }
+});
+
+app.post("/login", async (req, res) => {
+  let userCred = req.body;
+
+  try {
+    const user = await userModel.findOne({ email: userCred.email });
+
+    if (user) {
+      const { password, ...otherUserData } = user;
+
+      const passwordMatch = await bcrypt.compare(userCred.password, password);
+
+      if (passwordMatch) {
+        let token = jwt.sign(otherUserData, "jwtkey");
+
+        if (token) {
+          req.session.login = token;
+          console.log(token);
+          res.send({ message: "Login successful", token: token });
+        } else {
+          return res.send({ message: "Login failed" });
+        }
+      } else {
+        return res.send({ message: "Password is incorrect" });
+      }
+    } else {
+      return res.send({ message: "User not found" });
+    }
+  } catch (err) {
+    console.log(err);
+    res.send({ message: "Error by logging user" });
   }
 });
 
