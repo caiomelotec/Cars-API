@@ -27,10 +27,11 @@ app.use(
 const verifyToken = require("./util/verifyToken");
 // Add Car
 app.post("/add-car", verifyToken, (req, res) => {
-  const car = req.body;
+  const {make, model, year, engineType, horsepower, torque, transmissionType, price} = req.body;
+  const userId = req.session.login.userId;
 
   carModel
-    .create(car)
+    .create({make, model, year, engineType, horsepower, torque, transmissionType, price, userId})
     .then((result) => {
       console.log("Car added successfully");
       res.send({ message: "Car added successfully" });
@@ -197,16 +198,15 @@ app.post("/login", async (req, res) => {
     const user = await userModel.findOne({ email: userCred.email });
 
     if (user) {
-      const { password, ...otherUserData } = user;
+      const { password, _id,...otherUserData } = user;
 
       const passwordMatch = await bcrypt.compare(userCred.password, password);
 
       if (passwordMatch) {
-        let token = jwt.sign(otherUserData, "jwtkey");
+        let token = jwt.sign({id:_id}, "jwtkey");
 
         if (token) {
-          req.session.login = token;
-          console.log(token);
+          req.session.login = { token: token, userId: _id.toString()};
           res.send({ message: "Login successful", token: token });
         } else {
           return res.send({ message: "Login failed" });

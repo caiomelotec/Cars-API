@@ -7,7 +7,7 @@ function verifyToken(req, res, next) {
     return res.status(401).send({ message: "Session is missing" });
   }
 
-  const token = authSession.login
+  const token = authSession.login.token;
 
   jwt.verify(token, "jwtkey", (err, data) => {
     if (err) {
