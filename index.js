@@ -21,17 +21,42 @@ const store = new MongoDbStore({
 });
 app.use(express.json());
 app.use(
-  session({ secret: "mysecret", resave: false, saveUninitialized: false, store: store })
+  session({
+    secret: "mysecret",
+    resave: false,
+    saveUninitialized: false,
+    store: store,
+  })
 );
 // utility
 const verifyToken = require("./util/verifyToken");
+const checkCarOwnership = require("./util/checkCarOwnership");
 // Add Car
 app.post("/add-car", verifyToken, (req, res) => {
-  const {make, model, year, engineType, horsepower, torque, transmissionType, price} = req.body;
+  const {
+    make,
+    model,
+    year,
+    engineType,
+    horsepower,
+    torque,
+    transmissionType,
+    price,
+  } = req.body;
   const userId = req.session.login.userId;
 
   carModel
-    .create({make, model, year, engineType, horsepower, torque, transmissionType, price, userId})
+    .create({
+      make,
+      model,
+      year,
+      engineType,
+      horsepower,
+      torque,
+      transmissionType,
+      price,
+      userId,
+    })
     .then((result) => {
       console.log("Car added successfully");
       res.send({ message: "Car added successfully" });
@@ -40,6 +65,20 @@ app.post("/add-car", verifyToken, (req, res) => {
       console.log("Error creating car");
       res.status(500).send({ message: "Error by adding a car" });
     });
+});
+// delete car that belogs to the user
+app.delete("/car/:carId", checkCarOwnership, async (req, res) => {
+  try {
+    // Access car information from req.car
+    const car = req.car;
+
+    // Proceed with deletion
+    await carModel.deleteOne({ _id: car._id });
+    res.send({ message: "Car deleted successfully" });
+  } catch (err) {
+    res.status(500).send({ message: "Error by deleting car" });
+    console.log(err);
+  }
 });
 
 // search car by model, make or year
@@ -198,15 +237,15 @@ app.post("/login", async (req, res) => {
     const user = await userModel.findOne({ email: userCred.email });
 
     if (user) {
-      const { password, _id,...otherUserData } = user;
+      const { password, _id, ...otherUserData } = user;
 
       const passwordMatch = await bcrypt.compare(userCred.password, password);
 
       if (passwordMatch) {
-        let token = jwt.sign({id:_id}, "jwtkey");
+        let token = jwt.sign({ id: _id }, "jwtkey");
 
         if (token) {
-          req.session.login = { token: token, userId: _id.toString()};
+          req.session.login = { token: token, userId: _id.toString() };
           res.send({ message: "Login successful", token: token });
         } else {
           return res.send({ message: "Login failed" });
