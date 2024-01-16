@@ -266,10 +266,10 @@ app.post("/logout", (req, res) => {
   req.session.destroy((err) => {
     if (err) {
       console.log(err);
-      res.send({ message: "Error by logging out" });
+      returnres.status(500).send({ message: "Error by logging out" });
     }
 
-    res.send({ message: "User logged out" });
+    return res.send({ message: "User logged out" });
   });
 });
 
